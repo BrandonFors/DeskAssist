@@ -2,6 +2,26 @@
 #define RTOS_SETUP_H
 
 #include "freertos/FreeRTOS.h"
-//put all queue and timer stuff in here
+
+#define BUTTON_QUEUE_LEN 10
+
+
+enum ACTUATOR{
+  FAN,
+  VENT,
+  LAMP
+};
+
+enum COMMAND{
+  MODE,
+  TOGGLE,
+  SAMPLE_POT, // sampling from potentiometer
+  SAMPLE_BUT,
+  STOP_SAMPLE,
+};
+
+//queue handles
+
+QueueHandle_t buttonQueue;
 
 #endif

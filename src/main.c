@@ -5,7 +5,7 @@
 
 //outputs
 #include "level_indicator.h"
-#include "user_interface.h"
+#include "display.h"
 #include "fan_motor.h"
 #include "lamp.h"
 #include "vent.h"
@@ -21,8 +21,10 @@
 
 static const BaseType_t app_cpu = 0;
 
+
 static char* TAG = "RTOS";
 
+//startup function that will be called at the begeing of mcu running
 void start_up(){
   //set led pin to output mode
   gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
@@ -36,31 +38,28 @@ void start_up(){
   potentiometer_init();
 
 
+
+
 }
 
+// task that handles all outputs (vent, fan, lamp, and level indicator)
 void actuators(void *parameters){
   while(1){
 
-    // for(int i = 1; i <= 5; i++){
-    //   set_level(i);
-    //   vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }
-  vent_set_angle(0);     // min position
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-  vent_set_angle(90);    // center
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-  vent_set_angle(180);   // max position
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
 
   }
 
 }
 
+
+
 void read_potentiometer(void *parameters){
   while(1){
     int pct = read_pot_pct();
-    ESP_LOGI(TAG, "Recieved pot reading of %d%%", pct);
+    // ESP_LOGI(TAG, "Recieved pot reading of %d%%", pct);
     //send to actuator task 
     //actuator task will apply this value whereever it is relevant according to UI
     vTaskDelay(100/portTICK_PERIOD_MS);
@@ -68,10 +67,29 @@ void read_potentiometer(void *parameters){
   
 }
 
+// handles all user interface display functionality and interactions
+
 void user_interface(void *parameters){
+  //need structs for all actuator states, should this be global to be accessable by the task that processes commands for actuators
+    // pwm value
+    // actuator mode
+    // whether its on or off
+  //need menu array for each menu (actuator menu, action menu)
+  //actions of mode and toggle can be implemented using a screen displaying the current state that is switchable through buttons
+  //on/off, automatic/manual
+
+  //variables needed for UI logic
+  bool home = true;
+  //variable to store what button was pressed
+  char pressed = NULL;
+  homeScreen();
+
   while(1){
-    drawTest();
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    if(xQueueReceive(buttonQueue, &pressed, portMAX_DELAY) == pdTRUE){
+
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+
     
   }
 }
@@ -89,6 +107,12 @@ void blink_led(void *parameters) {
 
 void app_main() {
   start_up();
+
+  //setup handles for queues 
+
+  buttonQueue = xQueueCreate(BUTTON_QUEUE_LEN, sizeof(char));
+
+
   
   ESP_LOGI(TAG, "Creating Tasks.");
   
@@ -125,7 +149,7 @@ void app_main() {
   xTaskCreatePinnedToCore(
     read_potentiometer,
     "Pot Test",
-    2048,
+    4096,
     NULL,
     1,
     NULL,

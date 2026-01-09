@@ -6,7 +6,7 @@ void insertion_sort(int samples[], int arr_len){
     int j = i-1;
     int temp = samples[i];
     while((j >= 0) && (samples[j] > temp)){
-      samples[j+i] = samples[j];
+      samples[j+1] = samples[j];
       j--;
     }
     samples[j+1] = temp;

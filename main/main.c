@@ -54,8 +54,6 @@ void IRAM_ATTR gpio_isr_handler(void* arg){
 
 //startup function that will be called at the begeing of mcu running
 void start_up(){
-  //set led pin to output mode
-  gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
 
   //initialize peripherals
   indicator_init();
@@ -233,16 +231,6 @@ void controller_task(void *parameters){
 }
 
 
-void blink_led(void *parameters) {
-  while(1){
-    gpio_set_level(LED_BUILTIN, 1);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    gpio_set_level(LED_BUILTIN, 0);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-  
-}
-
 void app_main() {
   start_up();
 
@@ -253,16 +241,6 @@ void app_main() {
 
   
   ESP_LOGI(TAG, "Creating Tasks.");
-  
-  xTaskCreatePinnedToCore(
-    blink_led,
-    "Blink LED",
-    1024,
-    NULL,
-    1,
-    NULL,
-    app_cpu
-  );
 
   xTaskCreatePinnedToCore(
     actuators,

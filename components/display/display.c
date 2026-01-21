@@ -113,17 +113,16 @@ void displayAdjust(MenuItem item){
 }
 
 
-void displayToggle(MenuItem item, bool on){
+void displayToggle(MenuItem item, bool is_enabled){
   //tells the user what sensor they are toggling and tells them to press "select" to finish
   //tells the user to use down button to toggle
-  //displays whether device is on or off
 
   u8g2_ClearBuffer(&u8g2);
   u8g2_DrawRFrame(&u8g2, 0, 0, 128, 64, 5);
   u8g2_DrawStr(&u8g2, X_START, Y_START+0*Y_INC,"Press down to");
   u8g2_DrawStr(&u8g2, X_START, Y_START+1*Y_INC,"turn ");
   u8g2_DrawStr(&u8g2, X_START+40, Y_START+1*Y_INC,item.name);
-  if(on){
+  if(is_enabled){
     u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"OFF");
   }else{
     u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"ON");
@@ -133,3 +132,24 @@ void displayToggle(MenuItem item, bool on){
 
   u8g2_SendBuffer(&u8g2);
 }
+
+void displayMode(MenuItem item, bool is_auto){
+  //tells the user what sensor they are toggling and tells them to press "select" to finish
+  //tells the user to use down button to change mode
+
+  u8g2_ClearBuffer(&u8g2);
+  u8g2_DrawRFrame(&u8g2, 0, 0, 128, 64, 5);
+  u8g2_DrawStr(&u8g2, X_START, Y_START+0*Y_INC,"Press down to");
+  u8g2_DrawStr(&u8g2, X_START, Y_START+1*Y_INC,"turn ");
+  u8g2_DrawStr(&u8g2, X_START+40, Y_START+1*Y_INC,item.name);
+  if(is_auto){
+    u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"MANUAL");
+  }else{
+    u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"AUTO");
+  }
+  u8g2_DrawStr(&u8g2, X_START, Y_START+2*Y_INC,"Press select");
+  u8g2_DrawStr(&u8g2, X_START, Y_START+3*Y_INC,"to stop.");
+
+  u8g2_SendBuffer(&u8g2);
+}
+

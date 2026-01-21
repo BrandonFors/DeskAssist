@@ -46,10 +46,6 @@ TaskHandle_t userInterfaceTask = NULL;
 TaskHandle_t potentiometerSampleTask = NULL;
 TaskHandle_t tempPhotoSampleTask = NULL;
 
-//Mutex / Semaphores
-SemaphoreHandle_t fanMotorMutex = NULL; // handles access to the motor driver
-SemaphoreHandle_t ventMutex = NULL;
-SemaphoreHandle_t lampMutex = NULL;
 
 static char* TAG = "RTOS";
 
@@ -266,36 +262,50 @@ void user_interface(void *parameters){
 
     switch(chosen_action){
       case (MODE):
-        
-        //query the respective driver for its mode (use mutex)
+        //query the respective driver for its mode 
+        bool is_auto = NULL;
+        if(chosen_actuator == FAN){
+          is_auto = get_fan_is_auto();
+        }else if(chosen_actuator == VENT){
+          is_auto = get_vent_is_auto();
+        }else if(chosen_actuator == LAMP){
+          is_auto = get_lamp_is_auto();
+        }else{
+          ESP_LOGI(TAG, "Unhandled acutator ID in MODE case");
+        }
         //send a message to the controller to update the output of of the given actuator 
+        displayMode(actuator_menu[chosen_actuator], is_auto);
+        while(pressed != BUTTON_1){ 
+          if(xQueueReceive(buttonQueue, &pressed, portMAX_DELAY) == pdTRUE){
+            if(pressed == BUTTON_2){ // only toggle auto/manual if button 2 (down) is pressed
+              is_auto = !is_auto;
+              xQueueSendToBack(controllerQueue, &instruction, portMAX_DELAY);
+              displayToggle(actuator_menu[chosen_actuator], is_auto);
+            }
+          }
+        }
+
       case(TOGGLE):
         //get current enable status from chosen driver
         bool enabled = NULL;
         if(chosen_actuator == FAN){
-          xSemaphoreTake(fanMotorMutex, portMAX_DELAY);
           enabled = get_fan_is_enabled();
-          xSemaphoreGive(fanMotorMutex);
         }else if(chosen_actuator == VENT){
-          xSemaphoreTake(ventMutex, portMAX_DELAY);
           enabled = get_vent_is_enabled();
-          xSemaphoreGive(ventMutex);
         }else if(chosen_actuator == LAMP){
-          xSemaphoreTake(lampMutex, portMAX_DELAY);
           enabled = get_lamp_is_enabled();
-          xSemaphoreGive(lampMutex);
         }else{
           ESP_LOGI(TAG, "Unhandled acutator ID in TOGGLE case");
         }
-        displayToggle(actuator_menu[chosen_action], enabled);
-        //query the respective driver for its mode (use mutex)
+        displayToggle(actuator_menu[chosen_actuator], enabled);
+        //query the respective driver for its mode 
         //send a message to the controller to update the output of of the given actuator 
         while(pressed != BUTTON_1){ 
           if(xQueueReceive(buttonQueue, &pressed, portMAX_DELAY) == pdTRUE){
             if(pressed == BUTTON_2){ // only toggle on/off if button 2 (down) is pressed
               enabled = !enabled;
               xQueueSendToBack(controllerQueue, &instruction, portMAX_DELAY);
-              displayToggle(actuator_menu[chosen_action], enabled);
+              displayToggle(actuator_menu[chosen_actuator], enabled);
             }
           }
         }
@@ -355,24 +365,30 @@ void controller_task(void *parameters){
           case(MODE):
           //add mode toggle function for all actuators
           //store state data in actuator drivers
+            switch(rec_instruct.actuator_id){
+              case(FAN):
+                fan_toggle_auto();
+                break;
+              case(VENT):
+                vent_toggle_auto();
+                break;
+              case(LAMP):
+                lamp_toggle_auto();
+                break;
+              default:
+            }            
             break;
           ///////// TOGGLE switch
           case(TOGGLE):
-            switch(rec_instruct.action_id){
+            switch(rec_instruct.actuator_id){
               case(FAN):
-                xSemaphoreTake(fanMotorMutex, portMAX_DELAY);
                 fan_toggle_enabled();
-                xSemaphoreGive(fanMotorMutex);
                 break;
               case(VENT):
-                xSemaphoreTake(ventMutex, portMAX_DELAY);
                 vent_toggle_enabled();
-                xSemaphoreGive(ventMutex);
                 break;
               case(LAMP):
-                xSemaphoreTake(lampMutex, portMAX_DELAY);
                 lamp_toggle_enabled();
-                xSemaphoreGive(lampMutex);
                 break;
               default:
             }            
@@ -403,7 +419,7 @@ void controller_task(void *parameters){
 void app_main() {
   start_up();
 
-  //setup handles for queues/mutexes/semaphores
+  //setup handles for queues
   buttonQueue = xQueueCreate(BUTTON_QUEUE_LEN, sizeof(ButtonEvent));
   if(buttonQueue == NULL){
     ESP_LOGE(TAG, "Failed to create buttonQueue");
@@ -413,19 +429,6 @@ void app_main() {
     ESP_LOGE(TAG, "Failed to create controllerQueue");
   }
   
-  fanMotorMutex = xSemaphoreCreateMutex();
-  if(fanMotorMutex == NULL){
-    ESP_LOGE(TAG, "Failed to create fanMotorMutex");
-  }
-  ventMutex = xSemaphoreCreateMutex();
-  if(ventMutex == NULL){
-    ESP_LOGE(TAG, "Failed to create ventMutex");
-  }
-  lampMutex = xSemaphoreCreateMutex();
-  if(lampMutex == NULL){
-    ESP_LOGE(TAG, "Failed to create lampMutex");
-  }
-
 
 
   ESP_LOGI(TAG, "Creating Tasks.");

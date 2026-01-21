@@ -16,7 +16,6 @@ static const char *TAG = "Fan";
 static uint32_t current_duty;
 
 bool is_enabled = NULL;
-bool is_auto = NULL;
 
 
 
@@ -49,7 +48,6 @@ void fan_init(){
 
   current_duty = 0;
 
-  is_auto = false;
   is_enabled = true;
 
   // be sure to run ledc_fade_func_install(0); in main 
@@ -77,16 +75,8 @@ void fan_set_speed(uint8_t percent){
 
 }
 
-bool get_fan_is_auto(){
-  return is_auto;
-}
-
 bool get_fan_is_enabled(){
   return is_enabled;
-}
-
-void fan_toggle_auto(){
-  is_auto = !is_auto;
 }
 
 void fan_toggle_enabled(){
@@ -96,7 +86,7 @@ void fan_toggle_enabled(){
     update_fan_duty(current_duty); //update the last duty that was set by the user to the driver
   }else{
     ESP_LOGI(TAG, "Fan has been disabled");
-    update_fan_duty(0); // push duty directly to avoid overwriting user set duty
+    update_duty(0); // push duty directly to avoid overwriting user set duty
   }
 }
 

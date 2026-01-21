@@ -18,7 +18,6 @@ static const char *TAG = "Lamp";
 
 static uint32_t current_duty;
 static bool is_enabled = NULL;
-static bool is_auto = NULL;
 
 
 void lamp_init(){
@@ -50,7 +49,6 @@ void lamp_init(){
 
   current_duty = 0;
   is_enabled = true;
-  is_auto = false;
 
   // be sure to run ledc_fade_func_install(0); in main
   //this allows the ledc to transition between duty cycle values smoothly
@@ -71,19 +69,14 @@ void lamp_set_brightness(uint8_t percent){
   if(current_duty < MIN_LAMP_DUTY + 5){
     current_duty = 0; // turn bulb off if the the duty is close to the min
   }
-  update_lamp_duty(current_duty);
+  if(is_enabled){
+    update_lamp_duty(current_duty);
+  }
 }
 
-bool get_lamp_is_auto(){
-  return is_auto;
-}
 
 bool get_lamp_is_enabled(){
   return is_enabled;
-}
-
-void lamp_toggle_auto(){
-  is_auto = !is_auto;
 }
 
 void lamp_toggle_enabled(){

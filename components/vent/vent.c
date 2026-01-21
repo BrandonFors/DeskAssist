@@ -19,7 +19,6 @@ static const char *TAG = "Vent Servo";
 static uint32_t current_duty;
 
 static bool is_enabled = NULL;
-static bool is_auto = NULL;
 
 void vent_init(){
   timer_config = (ledc_timer_config_t){
@@ -48,7 +47,6 @@ void vent_init(){
 
   current_duty = 0;
   is_enabled = true;
-  is_auto = false;
   // be sure to run ledc_fade_func_install(0); in main 
   //this allows the ledc to transition between duty cycle values smoothly
 }
@@ -78,7 +76,8 @@ void vent_set_duty(uint32_t new_duty){
   }
 }
 
-void vent_set_angle(uint8_t angle){
+// fxn for manual control 
+void vent_set_angle(uint8_t angle){ 
   current_duty = angle_to_duty(angle);
   //vent myst be on and not in auto mode
   if(is_enabled){
@@ -86,18 +85,14 @@ void vent_set_angle(uint8_t angle){
   }
 }
 
+//auto functionality tbd 
 
-bool get_vent_is_auto(){
-  return is_auto;
-}
+
 
 bool get_vent_is_enabled(){
   return is_enabled;
 }
 
-void vent_toggle_auto(){
-  is_auto = !is_auto;
-}
 
 void vent_toggle_enabled(){
   is_enabled = !is_enabled;

@@ -39,13 +39,6 @@ typedef struct {
   int pct; //used by ADC tasks
 } ControllerMsg;
 
-typedef struct {
-  Actuator_Id actuator_id;
-  bool is_auto;
-  bool is_on;
-} ActuatorState;
-
-
 
 
 void gpio_isr_handler(void* arg);

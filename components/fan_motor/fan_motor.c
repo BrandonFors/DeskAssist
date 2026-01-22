@@ -9,7 +9,7 @@
 #define MAX_FAN_DUTY 255
 #define MIN_FAN_DUTY 90
 #define TIMER_FREQ 20000
-#define SENSOR_THRESH 75
+#define SENSOR_THRESH 39
 static ledc_timer_config_t timer_config;
 static ledc_channel_config_t channel_config;
 static const char *TAG = "Fan";
@@ -125,13 +125,13 @@ void fan_off(){
 void fan_send_sensor_pct(uint8_t sensor_pct){
   if((sensor_pct >= SENSOR_THRESH) != auto_on){
     auto_on = !auto_on;
-    if(is_auto){ // if auto is enabled for the device
-      if(auto_on){ // if the sensor threshold was reached
-        update_fan_duty(current_duty);
-      }else{
-        update_fan_duty(0);
-      } 
-    }
+  }
+  if(is_auto){ // if auto is enabled for the device
+    if(auto_on){ // if the sensor threshold was reached
+      update_fan_duty(current_duty);
+    }else{
+      update_fan_duty(0);
+    } 
   }
   
 }

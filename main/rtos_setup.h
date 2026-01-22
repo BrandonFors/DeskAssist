@@ -22,6 +22,7 @@ typedef enum {
   CONTROLLER = 1,
   POTENTIOMETER = 2,
   PHOTORESISTOR = 3,
+  TEMP_SENSOR = 4,
 } Sender_Id;
 
 
@@ -40,6 +41,14 @@ typedef struct {
   int pct; //used by ADC tasks
 } ControllerMsg;
 
+typedef struct{
+  int temp;  
+} TempReading;
+
+typedef struct{
+  int temp;
+  char time[10];
+} WifiData;
 
 
 void gpio_isr_handler(void* arg);

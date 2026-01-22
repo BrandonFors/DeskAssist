@@ -1,7 +1,6 @@
 #include "potentiometer.h"
 #include "adc_manager.h"
 #include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
 #include "driver/gptimer.h"
 
 #include "esp_err.h"

@@ -126,13 +126,13 @@ void lamp_off(){
 void lamp_send_sensor_pct(uint8_t sensor_pct){
   if((sensor_pct >= SENSOR_THRESH) != auto_on){
     auto_on = !auto_on;
-    if(is_auto){ // if auto is enabled for the device
-      if(auto_on){ // if the sensor threshold was reached
-        update_lamp_duty(current_duty);
-      }else{
-        update_lamp_duty(0);
-      } 
-    }
+  }
+  if(is_auto){ // if auto is enabled for the device
+    if(auto_on){ // if the sensor threshold was reached
+      update_lamp_duty(current_duty);
+    }else{
+      update_lamp_duty(0);
+    } 
   }
   
 }

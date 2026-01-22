@@ -13,7 +13,7 @@
 #define MAX_PULSE_MS 2700 // max pulse in us
 #define MAX_DUTY 4096 // max duty cycle for 12 bit duty resolution
 
-#define SENSOR_THRESH 75
+#define SENSOR_THRESH 39
 
 
 static ledc_timer_config_t timer_config;
@@ -118,15 +118,16 @@ void vent_toggle_enabled(){
 
 // if the sent in percentage is greater than the set threshold, turn the fan on, otherwise off
 void vent_send_sensor_pct(uint8_t sensor_pct){
+  ESP_LOGI(TAG, "Given %d", sensor_pct);
   if((sensor_pct >= SENSOR_THRESH) != auto_on){
     auto_on = !auto_on;
-    if(is_auto){ // if auto is enabled for the device
-      if(auto_on){ // if the sensor threshold was reached
-        update_vent_duty(current_duty);
-      }else{
-        update_vent_duty(angle_to_duty(0));
-      } 
-    }
+  }
+  if(is_auto){ // if auto is enabled for the device
+    if(auto_on){ // if the sensor threshold was reached
+      update_vent_duty(current_duty);
+    }else{
+      update_vent_duty(angle_to_duty(0));
+    } 
   }
   
 }

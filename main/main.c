@@ -1,5 +1,6 @@
 #include "board.h"
 #include "rtos_setup.h"
+#include <stdio.h>
 
 //esp headders
 #include "esp_err.h"
@@ -20,6 +21,7 @@
 #include "potentiometer.h"
 #include "buttons.h"
 #include "photoresistor.h"
+#include "temp_sensor.h"
 
 //rtos
 #include "freertos/FreeRTOS.h"
@@ -41,6 +43,8 @@ static const BaseType_t app_cpu = 1; //core for application purposes
 //queue handles
 QueueHandle_t buttonQueue = NULL; //handles button interrupts to UI task
 QueueHandle_t controllerQueue = NULL; //handles messages sent to controller
+QueueHandle_t tempReadingQueue = NULL; //hanldes temp readings to UI for home display
+QueueSetHandle_t wifiDataQueue = NULL; //handles sending wifi collected data to UI for home display
 
 //mutexes
 SemaphoreHandle_t adcMutex = NULL;
@@ -103,6 +107,7 @@ void start_up(){
   potentiometer_init();
   buttons_init();
   photoresistor_init();
+  temp_sensor_init();
 
 
   //set callback functions for button interrupts
@@ -157,7 +162,9 @@ void potentiometer_task(void *parameters){
 }
 
 void read_temp_photo(void *parameters){
+  int sent_temp = 0;
   while(1){
+
     // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     xSemaphoreTake(adcMutex, portMAX_DELAY);
     int reading = read_photo_light();
@@ -170,7 +177,36 @@ void read_temp_photo(void *parameters){
     if(xQueueSendToBack(controllerQueue ,&instruction, 0) == pdFALSE){
       ESP_LOGI(TAG, "Photoresistor reading dropped");
     }
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
+
+    xSemaphoreTake(adcMutex, portMAX_DELAY);
+    reading = read_temp_pct();
+    xSemaphoreGive(adcMutex);
+
+    //send temp sensor as a percentage to controller task
+    instruction.pct = reading;
+    instruction.sender_id = TEMP_SENSOR;
+    if(xQueueSendToBack(controllerQueue ,&instruction, 0) == pdFALSE){
+      ESP_LOGI(TAG, "Temperature reading dropped");
+    }
+
+    xSemaphoreTake(adcMutex, portMAX_DELAY);
+    reading = read_temp_deg();
+    xSemaphoreGive(adcMutex);
+    if(reading != sent_temp){
+      TempReading tempReading = {
+        .temp = reading,
+      };
+      
+      if(xQueueSendToFront(tempReadingQueue, &tempReading, 0) == pdFALSE){
+        ESP_LOGI(TAG, "Temperature degree reading dropped");
+      }else{
+        sent_temp = reading;
+      }
+    }
+    
+
+    //send temp sensor as a temperature to UI task if different from sent_temp
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
 
   }
 }
@@ -179,13 +215,6 @@ void read_temp_photo(void *parameters){
 // handles all user interface display functionality and interactions
 
 void user_interface(void *parameters){
-  //need structs for all actuator states, should this be global to be accessable by the task that processes commands for actuators
-    // pwm value
-    // actuator mode
-    // whether its on or off
-  //need menu array for each menu (actuator menu, action menu)
-  //actions of mode and toggle can be implemented using a screen displaying the current state that is switchable through buttons
-  //on/off, automatic/manual
 
   MenuItem actuator_menu[ACTUATOR_MENU_LEN] = {
     {"Fan",false}, 
@@ -223,16 +252,30 @@ void user_interface(void *parameters){
   
   //variable to store what button was pressed
   ButtonEvent pressed = NA;
-  
+  //stores temp reading from temp sensor
+  TempReading tempReading = {0};
+  WifiData wifiData = {0};
+  char inside_temp[5] = "";
+  homeScreen(inside_temp);
   while(1){
-    homeScreen();
+    homeScreen(inside_temp);
+    while(xQueueReceive(buttonQueue, &pressed, pdMS_TO_TICKS(10000)) == pdFALSE){
+      //scan wifi and temp queue
+      if(xQueueReceive(tempReadingQueue, &tempReading, 0) == pdTRUE ||
+         xQueueReceive(wifiDataQueue, &wifiData, 0) == pdTRUE){
+        //copy temp to a string
+        snprintf(inside_temp, sizeof(inside_temp),"%d", tempReading.temp);
 
-    // MENU 1: ACTUATORS ///////////////////////
-    if(xQueueReceive(buttonQueue, &pressed, portMAX_DELAY) == pdTRUE){
-      selected_idx = 0;
-      actuator_menu[selected_idx].selected = true;
-      displayMenu(actuator_menu, ACTUATOR_MENU_LEN);
+        //refresh screen
+        homeScreen(inside_temp);
+      }
+
+
     }
+    // MENU 1: ACTUATORS ///////////////////////
+    selected_idx = 0;
+    actuator_menu[selected_idx].selected = true;
+    displayMenu(actuator_menu, ACTUATOR_MENU_LEN);
     pressed = NA;
     while(pressed != BUTTON_1){ // while the select button is not pressed
       if(xQueueReceive(buttonQueue, &pressed, portMAX_DELAY) == pdTRUE){
@@ -387,8 +430,6 @@ void controller_task(void *parameters){
         switch(rec_instruct.action_id){ // switch based on which action the user took
           ///////// MODE SWITCH
           case(MODE):
-          //add mode toggle function for all actuators
-          //store state data in actuator drivers
             switch(rec_instruct.actuator_id){
               case(FAN):
                 fan_toggle_auto();
@@ -432,10 +473,11 @@ void controller_task(void *parameters){
             ESP_LOGE(TAG, "Controller case unhandled.");
         } 
       }else if(rec_instruct.sender_id == PHOTORESISTOR){
-        //any fxn that involves adc must be protected as they share one adc unit
         lamp_send_sensor_pct(rec_instruct.pct);
-      }else{
+      }else if(rec_instruct.sender_id == TEMP_SENSOR){
         //do nothing
+        vent_send_sensor_pct(rec_instruct.pct);
+        fan_send_sensor_pct(rec_instruct.pct);
       }
     }
     
@@ -455,9 +497,21 @@ void app_main() {
   if(controllerQueue == NULL){
     ESP_LOGE(TAG, "Failed to create controllerQueue");
   }
-  
+  tempReadingQueue = xQueueCreate(1, sizeof(TempReading));
+  if(tempReadingQueue == NULL){
+    ESP_LOGE(TAG, "Failed to create tempReadingQueue");
+  }
+  wifiDataQueue = xQueueCreate(1, sizeof(WifiData));
+  if(wifiDataQueue == NULL){
+    ESP_LOGE(TAG, "Failed to create wifiDataQueue");
+  }
+
+
   //create mutex
   adcMutex = xSemaphoreCreateMutex();
+  if(adcMutex == NULL){
+    ESP_LOGE(TAG, "Failed to create adcMutex");
+  }
 
   ESP_LOGI(TAG, "Creating Tasks.");
 

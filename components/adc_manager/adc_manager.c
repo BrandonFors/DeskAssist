@@ -20,8 +20,9 @@ bool initialized = false;
 
 static char *TAG = "ADC MANAGER";
 
-void init_adc_manager(){
+void adc_manager_init(){
   if(!initialized){
+    //configuring all adc channels to unit 1 for simplicity
     init_config = (adc_oneshot_unit_init_cfg_t){
       .unit_id = ADC_UNIT_1,
       .ulp_mode = ADC_ULP_MODE_DISABLE,
@@ -31,6 +32,7 @@ void init_adc_manager(){
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
     
     //config used for all channels
+    //atten db 12 used for all channels for simplicity
     channel_config = (adc_oneshot_chan_cfg_t){
       .bitwidth = ADC_BITWIDTH_DEFAULT,
       .atten = ADC_ATTEN_DB_12,

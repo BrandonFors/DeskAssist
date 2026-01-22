@@ -19,6 +19,7 @@
 //inputs
 #include "potentiometer.h"
 #include "buttons.h"
+#include "photoresistor.h"
 
 //rtos
 #include "freertos/FreeRTOS.h"
@@ -40,6 +41,9 @@ static const BaseType_t app_cpu = 1; //core for application purposes
 //queue handles
 QueueHandle_t buttonQueue = NULL; //handles button interrupts to UI task
 QueueHandle_t controllerQueue = NULL; //handles messages sent to controller
+
+//mutexes
+SemaphoreHandle_t adcMutex = NULL;
 
 //Task Handles 
 TaskHandle_t userInterfaceTask = NULL;
@@ -98,12 +102,23 @@ void start_up(){
   vent_init();
   potentiometer_init();
   buttons_init();
+  photoresistor_init();
 
 
   //set callback functions for button interrupts
   gpio_isr_handler_add(BUT_1_PIN, gpio_isr_handler, (void *)BUTTON_1);
   gpio_isr_handler_add(BUT_2_PIN, gpio_isr_handler, (void *)BUTTON_2);
 
+
+  //install fade functionality for ledc driver
+  ESP_ERROR_CHECK(ledc_fade_func_install(0));
+
+  //set level indicator to 0 as potentiometer is not being sampled
+  set_level_indicator(0);
+
+}
+
+void setup_isrs(){
   //create an event callback for potentiometer signal
   gptimer_event_callbacks_t pot_signal_callback = {
     .on_alarm = signal_sample_pot,
@@ -115,13 +130,6 @@ void start_up(){
   //enable pot timer
   //timer will be started and stopped from the 
   ESP_ERROR_CHECK(gptimer_enable(pot_timer));
-
-  //install fade functionality for ledc driver
-  ESP_ERROR_CHECK(ledc_fade_func_install(0));
-
-  //set level indicator to 0 as potentiometer is not being sampled
-  set_level_indicator(0);
-
 }
 
 
@@ -131,7 +139,10 @@ void start_up(){
 void potentiometer_task(void *parameters){
   while(1){
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    //protect adc unit
+    xSemaphoreTake(adcMutex, portMAX_DELAY);
     int pct = read_pot_pct();
+    xSemaphoreGive(adcMutex);
     // ESP_LOGI(TAG, "Recieved pot reading of %d%%", pct);
     //send to actuator task 
     //actuator task will apply this value whereever it is relevant according to UI
@@ -147,7 +158,20 @@ void potentiometer_task(void *parameters){
 
 void read_temp_photo(void *parameters){
   while(1){
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    xSemaphoreTake(adcMutex, portMAX_DELAY);
+    int reading = read_photo_light();
+    xSemaphoreGive(adcMutex);
+
+    ControllerMsg instruction = {
+      .pct = reading,
+      .sender_id = PHOTORESISTOR,
+    };
+    if(xQueueSendToBack(controllerQueue ,&instruction, 0) == pdFALSE){
+      ESP_LOGI(TAG, "Photoresistor reading dropped");
+    }
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+
   }
 }
 
@@ -280,11 +304,11 @@ void user_interface(void *parameters){
             if(pressed == BUTTON_2){ // only toggle auto/manual if button 2 (down) is pressed
               is_auto = !is_auto;
               xQueueSendToBack(controllerQueue, &instruction, portMAX_DELAY);
-              displayToggle(actuator_menu[chosen_actuator], is_auto);
+              displayMode(actuator_menu[chosen_actuator], is_auto);
             }
           }
         }
-
+        break;
       case(TOGGLE):
         //get current enable status from chosen driver
         bool enabled = NULL;
@@ -407,6 +431,9 @@ void controller_task(void *parameters){
           default:
             ESP_LOGE(TAG, "Controller case unhandled.");
         } 
+      }else if(rec_instruct.sender_id == PHOTORESISTOR){
+        //any fxn that involves adc must be protected as they share one adc unit
+        lamp_send_sensor_pct(rec_instruct.pct);
       }else{
         //do nothing
       }
@@ -429,7 +456,8 @@ void app_main() {
     ESP_LOGE(TAG, "Failed to create controllerQueue");
   }
   
-
+  //create mutex
+  adcMutex = xSemaphoreCreateMutex();
 
   ESP_LOGI(TAG, "Creating Tasks.");
 
@@ -466,12 +494,14 @@ void app_main() {
   xTaskCreatePinnedToCore(
     read_temp_photo,
     "Read Temp and Photo",
-    1024,
+    2048,
     NULL,
     3,
     &tempPhotoSampleTask,
     app_cpu
   );
+
+  setup_isrs();
 
   vTaskDelete(NULL);
 }

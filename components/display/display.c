@@ -143,7 +143,7 @@ void displayMode(MenuItem item, bool is_auto){
   u8g2_DrawStr(&u8g2, X_START, Y_START+1*Y_INC,"turn ");
   u8g2_DrawStr(&u8g2, X_START+40, Y_START+1*Y_INC,item.name);
   if(is_auto){
-    u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"MANUAL");
+    u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"MANU");
   }else{
     u8g2_DrawStr(&u8g2, X_START+80, Y_START+1*Y_INC,"AUTO");
   }

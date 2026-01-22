@@ -21,6 +21,7 @@ typedef enum {
   UI = 0,
   CONTROLLER = 1,
   POTENTIOMETER = 2,
+  PHOTORESISTOR = 3,
 } Sender_Id;
 
 

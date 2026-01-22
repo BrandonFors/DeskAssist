@@ -24,7 +24,7 @@ static char *TAG = "Potentiometer";
 
 void potentiometer_init(){
   adc_channel_4 = ADC_CHANNEL_4;
-  init_adc_manager();
+  adc_manager_init();
   config_channel(adc_channel_4);
 
   //set up gptimer for interrupts
@@ -59,6 +59,8 @@ int invert_reading(int vltg){
 //returns the raw reading of the potentiometer
 int read_pot_vltg(){
   int reading = read_vltg_from_channel(adc_channel_4);
+  ESP_LOGI(TAG, "Photentiometer reads value of %dmV", reading);
+
   //invert the voltage reading 
   reading = invert_reading(reading);
 

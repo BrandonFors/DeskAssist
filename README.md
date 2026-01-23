@@ -24,7 +24,7 @@ Hardware:
 
 When wiring components onto 3 different breadboards, I learned the importance of component organization. I found that organizing components relative to their powersource, board pin, and other related components is important for ease of device use and electrical debugging.
 
-When desigining circuits, I accounted for electrical noise using a filtering capacitor at the terminals of the 9V battery, accross the DC motor terminals, and on ADC pins. I also accounted for voltage spikes from the DC motor with a flyback diode.
+When desigining circuits, I accounted for electrical noise using a filtering capacitor at the terminals of the 9V battery, accross the DC motor terminals, and on ADC pins. I also accounted for voltage spikes from the DC motor with a flyback diode. I found it interesting how much hardware affects the preformance of devices in ways that software can't. For instance, the servo driving the vent system stuttered when the DC motor was activated with no filtering capacitor attached.
 
 I utilized a multimeter for most debugging when testing for expected behavior with GPIO and ADC pins. I also made sure to test the max voltage on any input pins to make sure I did not apply any voltage over 3.3V to my ESP32 chip.
 

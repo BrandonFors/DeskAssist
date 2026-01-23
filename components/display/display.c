@@ -59,16 +59,19 @@ void display_init(){
 
 }
 
-void homeScreen(char temp[5]){
+void homeScreen(char inside_temp[], char outside_temp[], char cur_time[]){
   //display placeholders for time here
   u8g2_ClearBuffer(&u8g2);
   u8g2_DrawRFrame(&u8g2, 0, 0, 128, 64, 5);
   u8g2_DrawStr(&u8g2, X_START, Y_START,"Home");
-  u8g2_DrawStr(&u8g2, X_START, Y_START+1*Y_INC,"Inside:");
-  u8g2_DrawStr(&u8g2, X_START+50, Y_START+1*Y_INC,temp);
-  u8g2_DrawStr(&u8g2, X_START+70, Y_START+1*Y_INC,"C");
-  u8g2_DrawStr(&u8g2, X_START, Y_START+2*Y_INC,"This is the temp.");
-  u8g2_DrawStr(&u8g2, X_START, Y_START+3*Y_INC,"This is a test.");
+  u8g2_DrawStr(&u8g2, X_START, Y_START+1*Y_INC,cur_time);
+  u8g2_DrawStr(&u8g2, X_START, Y_START+2*Y_INC,"Inside:");
+  u8g2_DrawStr(&u8g2, X_START+50, Y_START+2*Y_INC,inside_temp);
+  u8g2_DrawStr(&u8g2, X_START+80, Y_START+2*Y_INC,"C");
+  u8g2_DrawStr(&u8g2, X_START, Y_START+3*Y_INC,"Outside:");
+  u8g2_DrawStr(&u8g2, X_START+60, Y_START+3*Y_INC,outside_temp);
+  u8g2_DrawStr(&u8g2, X_START+90, Y_START+3*Y_INC,"C");
+
 
   u8g2_SendBuffer(&u8g2);
 

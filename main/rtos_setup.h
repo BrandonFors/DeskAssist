@@ -41,13 +41,15 @@ typedef struct {
   int pct; //used by ADC tasks
 } ControllerMsg;
 
+
+
+//the below structs are seperate to make adding a wifi data value easier in the future
 typedef struct{
   int temp;  
 } TempReading;
 
 typedef struct{
   int temp;
-  char time[10];
 } WifiData;
 
 

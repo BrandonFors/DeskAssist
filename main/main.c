@@ -1,6 +1,7 @@
 #include "board.h"
 #include "rtos_setup.h"
 #include <stdio.h>
+#include <time.h>
 
 //esp headders
 #include "esp_err.h"
@@ -28,8 +29,8 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-
-
+//wifi
+#include "wifi_com.h"
 
 
 #define NUM_ACTUATORS 3 
@@ -38,7 +39,7 @@
 #define ACTION_MENU_LEN   (NUM_ACTIONS + 1)
 
 static const BaseType_t app_cpu = 1; //core for application purposes
-// static const BaseType_t pro_cpu = 0; //wifi core
+static const BaseType_t pro_cpu = 0; //wifi core
 
 //queue handles
 QueueHandle_t buttonQueue = NULL; //handles button interrupts to UI task
@@ -108,6 +109,7 @@ void start_up(){
   buttons_init();
   photoresistor_init();
   temp_sensor_init();
+  wifi_com_init();
 
 
   //set callback functions for button interrupts
@@ -206,9 +208,26 @@ void read_temp_photo(void *parameters){
     
 
     //send temp sensor as a temperature to UI task if different from sent_temp
-    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   }
+}
+
+void wifi_task(void *parameters){
+  WifiData wifiData = {0};
+
+  while(1){
+    int temp = wifi_get_temp();
+    if(temp != -100){
+      wifiData.temp = temp;
+      if(xQueueSendToFront(wifiDataQueue, &wifiData, 0)== pdFALSE){
+        ESP_LOGI(TAG, "Wifi data dropped");
+      }
+    }
+    
+    vTaskDelay(60000 / portTICK_PERIOD_MS);
+  }
+
 }
 
 
@@ -255,20 +274,35 @@ void user_interface(void *parameters){
   //stores temp reading from temp sensor
   TempReading tempReading = {0};
   WifiData wifiData = {0};
+
+  time_t current_time;
+  struct tm *tm_local;
+
   char inside_temp[5] = "";
-  homeScreen(inside_temp);
+  char outside_temp[5] = "";
+  char cur_time_str[6] = "";
+
+
   while(1){
-    homeScreen(inside_temp);
-    while(xQueueReceive(buttonQueue, &pressed, pdMS_TO_TICKS(10000)) == pdFALSE){
+    homeScreen(inside_temp, outside_temp, cur_time_str);
+    // check the button queue for 1 sec and then refresh the screen
+    while(xQueueReceive(buttonQueue, &pressed, pdMS_TO_TICKS(1000)) == pdFALSE){ 
       //scan wifi and temp queue
       if(xQueueReceive(tempReadingQueue, &tempReading, 0) == pdTRUE ||
          xQueueReceive(wifiDataQueue, &wifiData, 0) == pdTRUE){
-        //copy temp to a string
+        //copy temps to strings from most recent data recieved
         snprintf(inside_temp, sizeof(inside_temp),"%d", tempReading.temp);
+        snprintf(outside_temp, sizeof(outside_temp), "%d", wifiData.temp);
 
-        //refresh screen
-        homeScreen(inside_temp);
       }
+      //get local time
+      current_time = time(NULL);
+      tm_local = localtime(&current_time);
+      snprintf(cur_time_str, sizeof(cur_time_str), "%d:%d", tm_local->tm_hour, tm_local->tm_min);
+
+
+      //refresh screen
+      homeScreen(inside_temp, outside_temp, cur_time_str);
 
 
     }
@@ -553,6 +587,17 @@ void app_main() {
     3,
     &tempPhotoSampleTask,
     app_cpu
+  );
+
+  xTaskCreatePinnedToCore(
+    wifi_task,
+    "Get Temp from Wifi",
+    8192,
+    NULL,
+    1,
+    NULL,
+    pro_cpu
+
   );
 
   setup_isrs();
